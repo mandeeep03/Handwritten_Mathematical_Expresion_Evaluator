@@ -3,55 +3,53 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ResidualBlock(nn.Module):
+SYMBOL_CLASSES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '=']
+NUM_CLASSES = len(SYMBOL_CLASSES)
+
+
+class ResBlock(nn.Module):
     def __init__(self, channels):
-        super(ResidualBlock, self).__init__()
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1)
         self.bn1 = nn.BatchNorm2d(channels)
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1)
         self.bn2 = nn.BatchNorm2d(channels)
 
     def forward(self, x):
-        residual = x
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
-        out += residual
-        return F.relu(out)
+        return F.relu(out + x)
 
 
 class SymbolCNN(nn.Module):
-    def __init__(self, num_classes=14):
-        super(SymbolCNN, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.res1 = ResidualBlock(32)
-
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
-        self.res2 = ResidualBlock(64)
-
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-
-        self.pool = nn.MaxPool2d(2, 2)
-        self.dropout1 = nn.Dropout(0.25)
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(128 * 3 * 3, 256)
-        self.fc2 = nn.Linear(256, num_classes)
+    def __init__(self, num_classes=NUM_CLASSES):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            ResBlock(32),
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            ResBlock(64),
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Dropout(0.25),
+        )
+        self.classifier = nn.Sequential(
+            nn.Linear(128 * 3 * 3, 256),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(256, num_classes),
+        )
 
     def forward(self, x):
-        x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        x = self.res1(x)
-        x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        x = self.res2(x)
-        x = self.pool(F.relu(self.bn3(self.conv3(x))))
-        x = self.dropout1(x)
+        x = self.features(x)
         x = x.view(x.size(0), -1)
-        x = F.relu(self.fc1(x))
-        x = self.dropout2(x)
-        x = self.fc2(x)
+        x = self.classifier(x)
         return x
-
-
-SYMBOL_CLASSES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '=', 'x']
-NUM_CLASSES = len(SYMBOL_CLASSES)

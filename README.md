@@ -1,55 +1,60 @@
 # Handwritten Mathematical Expression Evaluator
 
-A Python application that recognizes handwritten mathematical expressions from a drawing canvas and solves linear equations using a CNN model built with PyTorch.
+A Python application that recognizes handwritten mathematical expressions from a drawing canvas and computes the result using a CNN model built with PyTorch.
 
 ## What It Does
 
-- Provides **five input/output panels** in a single window:
-  - **3 Variable Assignment canvases** — draw assignments like `a = 5`, `b = 3`, `c = 2`
-  - **1 Equation canvas** — draw an equation using those variables, e.g. `a + b - c`
-  - **1 Output panel** — displays recognised variables, the substituted equation, and the final result
-- Uses a trained CNN (ResNet-style) to recognize individual symbols (digits 0–9, operators +, −, =, and variable x)
-- Segments the drawn image into characters via connected-component analysis
-- Evaluates arithmetic and solves linear equations for x using SymPy
+- Provides a **single drawing canvas** where you write a full math expression
+- Recognises digits (0–9) and operators (+, -, =) using a trained CNN
+- When you draw `=` at the end, the answer **appears automatically on the canvas** right after the equals sign
+- Segments drawn symbols via connected-component analysis
+- Evaluates arithmetic expressions using SymPy
+
+## How It Works
+
+1. **Draw** a math expression on the canvas (e.g. `2 + 4 =`)
+2. After you finish drawing the `=` sign, the app **automatically recognises** all symbols
+3. The **answer appears in green** directly on the canvas after the `=`
+4. The status panel below shows the recognised expression, result, and per-symbol confidence
 
 ## UI Layout
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  ✦ Handwritten Math Solver                                  │
-│  Assign variables  ▸  Write an equation  ▸  Evaluate        │
-├──────────────────────┬──────────────────────────────────────┤
-│  Variable A (a = ?)  │  Equation (a + b - c)               │
-│  [ draw pad ]        │  [ draw pad ]                       │
-│  recognised: a = 5   │  recognised: a + b - c              │
-├──────────────────────┤                                      │
-│  Variable B (b = ?)  │  [ Clear All ]        [ ⚡ Evaluate ]│
-│  [ draw pad ]        ├──────────────────────────────────────┤
-│  recognised: b = 3   │  📊 Output                           │
-├──────────────────────┤  Variables:  a = 5   b = 3   c = 2  │
-│  Variable C (c = ?)  │  Recognised: a + b - c              │
-│  [ draw pad ]        │  Substituted: (5) + (3) - (2)       │
-│  recognised: c = 2   │  Result: = 6                        │
-└──────────────────────┴──────────────────────────────────────┘
++---------------------------------------------------+
+|     Handwritten Math Expression Evaluator          |
++---------------------------------------------------+
+|                                                    |
+|   +-----------------------------------------+     |
+|   |                                         |     |
+|   |    [ you draw:  2 + 4 = ]   9           |     |
+|   |                             ^green      |     |
+|   +-----------------------------------------+     |
+|                                                    |
+|   [ Clear ]                      [ Evaluate ]     |
+|                                                    |
+|   Recognised:  2 + 4 =                            |
+|   Result:  = 6                                    |
+|   Confidence:  2: 98%  +: 95%  4: 97%  =: 92%    |
++---------------------------------------------------+
 ```
 
 ## Supported Expressions
 
-| Type                | Example          | Output      |
-|---------------------|------------------|-------------|
-| Arithmetic          | `3 + 5 =`        | `= 8`       |
-| Linear equation     | `x + 7 = 9`      | `x = 2`     |
-| Variable equation   | `a + b - c`      | `= 6` (with a=5, b=3, c=2) |
-| Simple assignment   | `x = 8`          | `x = 8`     |
+| Expression    | What You Draw | Answer on Canvas |
+|---------------|---------------|------------------|
+| Addition      | `2 + 4 =`     | `6`              |
+| Subtraction   | `9 - 3 =`     | `6`              |
+| Multi-digit   | `12 + 35 =`   | `47`             |
+| Chained       | `5 + 3 - 2 =` | `6`              |
 
 ## Project Structure
 
 ```
-model.py      CNN architecture (ResNet-style with residual blocks)
-train.py      Training script with synthetic data generation
-predict.py    Symbol segmentation & prediction pipeline
-solver.py     Expression parsing and equation solving (SymPy)
-ui.py         Tkinter-based multi-panel drawing interface
+model.py      CNN architecture (ResNet-style with residual blocks, 13 classes)
+train.py      Training script (MNIST digits + synthetic operators)
+predict.py    Symbol segmentation and prediction pipeline
+solver.py     Arithmetic expression evaluation (SymPy)
+ui.py         Tkinter single-canvas interface with auto-evaluation
 main.py       Application entry point
 ```
 
@@ -67,7 +72,7 @@ pip install -r requirements.txt
 python train.py
 ```
 
-This generates synthetic training data from system fonts and trains the CNN. The trained model is saved as `symbol_cnn.pth`.
+This downloads MNIST, generates synthetic operator data from system fonts, and trains the CNN for 30 epochs. The best model is saved as `symbol_cnn.pth`.
 
 2. **Launch the application:**
 
@@ -76,9 +81,10 @@ python main.py
 ```
 
 3. **Use the interface:**
-   - Draw a value in each **Variable** pad (e.g. write `5` in Variable A)
-   - Draw an equation in the **Equation** pad (e.g. write `a + b - c`)
-   - Press **⚡ Evaluate** — the output panel shows recognised symbols, substituted expression, and the final result
+   - Draw a math expression on the canvas (e.g. write `4 + 5 =`)
+   - The answer appears automatically in green after the `=` sign
+   - Press **Clear** to reset the canvas
+   - Press **Evaluate** to manually trigger recognition
 
 ## Requirements
 
