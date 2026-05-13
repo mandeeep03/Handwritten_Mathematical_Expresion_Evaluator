@@ -6,7 +6,7 @@ import os
 import sys
 
 from predict import SymbolPredictor
-from solver import evaluate_for_canvas
+from solver import evaluate_expression, evaluate_for_canvas, _find_variables
 
 
 class DrawPad(tk.Frame):
@@ -81,9 +81,9 @@ class DrawPad(tk.Frame):
     def draw_answer(self, text, x_pos, y_pos):
         self.canvas.delete('answer')
         try:
-            answer_font = tkfont.Font(family='Consolas', size=40, weight='bold')
+            answer_font = tkfont.Font(family='Consolas', size=36, weight='bold')
         except Exception:
-            answer_font = tkfont.Font(size=40, weight='bold')
+            answer_font = tkfont.Font(size=36, weight='bold')
         self.canvas.create_text(
             x_pos, y_pos, text=text,
             fill='#53d769', font=answer_font, anchor='w', tags='answer',
@@ -121,7 +121,7 @@ class MathSolverApp:
             font=self.title_font, fg='#e94560', bg='#1a1a2e',
         ).pack()
         tk.Label(
-            hdr, text='Draw an expression like  2 + 4 =  and the answer appears automatically',
+            hdr, text='Draw expressions like  2 + 4 =  or equations like  2x + 9 = 9',
             font=self.subtitle_font, fg='#a0a0b0', bg='#1a1a2e',
         ).pack(pady=(2, 0))
 
@@ -203,18 +203,39 @@ class MathSolverApp:
         if confidences:
             conf_text = '  '.join(f'{s}: {c:.0%}' for s, c in confidences)
             self.confidence_display.config(text=conf_text)
+
+        variables = _find_variables(expression)
+
         if expression.endswith('='):
             expr_before_eq = expression[:-1]
-            result = evaluate_for_canvas(expr_before_eq)
-            self.result_display.config(text=f'= {result}')
+            if variables:
+                # Equation with variable — solve it
+                result = evaluate_for_canvas(expr_before_eq)
+            else:
+                # Pure arithmetic
+                result = evaluate_for_canvas(expr_before_eq)
+            self.result_display.config(text=result)
             if bboxes:
                 last_bbox = bboxes[-1]
                 x_after_eq = last_bbox[2] + 20
                 y_center = (last_bbox[1] + last_bbox[3]) // 2
                 self.draw_pad.draw_answer(str(result), x_after_eq, y_center)
                 self._answer_shown = True
+        elif '=' in expression and variables:
+            # Equation like "2x+9=9" (= is in the middle, not trailing)
+            result = evaluate_expression(expression)
+            self.result_display.config(text=result)
+            if bboxes:
+                last_bbox = bboxes[-1]
+                x_after = last_bbox[2] + 20
+                y_center = (last_bbox[1] + last_bbox[3]) // 2
+                self.draw_pad.draw_answer(str(result), x_after, y_center)
+                self._answer_shown = True
         else:
-            self.result_display.config(text='draw = to get answer')
+            if variables:
+                self.result_display.config(text='draw = to solve')
+            else:
+                self.result_display.config(text='draw = to get answer')
             if self._answer_shown:
                 self.draw_pad.canvas.delete('answer')
                 self._answer_shown = False
@@ -237,5 +258,5 @@ def create_app(model_path='symbol_cnn.pth'):
         sys.exit(1)
     predictor = SymbolPredictor(model_path)
     root = tk.Tk()
-    app = MathSolverApp(root, predictor)
+    root.app = MathSolverApp(root, predictor)
     return root

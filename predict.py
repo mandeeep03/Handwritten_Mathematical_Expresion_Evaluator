@@ -14,8 +14,27 @@ class SymbolPredictor:
         self.model.eval()
         self.transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,))
+            transforms.Normalize((0.5,), (0.5,)),
         ])
+        # TTA augmentations (light)
+        self.tta_transforms = [
+            self.transform,  # original
+            transforms.Compose([
+                transforms.RandomAffine(degrees=5, translate=(0.05, 0.05)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),
+            ]),
+            transforms.Compose([
+                transforms.RandomAffine(degrees=7, translate=(0.05, 0.05)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),
+            ]),
+            transforms.Compose([
+                transforms.RandomAffine(degrees=0, scale=(0.9, 1.1)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5,), (0.5,)),
+            ]),
+        ]
 
     def preprocess_symbol(self, image):
         if isinstance(image, np.ndarray):
@@ -42,19 +61,60 @@ class SymbolPredictor:
         tensor = self.transform(canvas).unsqueeze(0)
         return tensor
 
-    def predict_single(self, image):
-        tensor = self.preprocess_symbol(image).to(self.device)
-        with torch.no_grad():
-            output = self.model(tensor)
-            probabilities = torch.softmax(output, dim=1)
+    def _preprocess_to_pil(self, image):
+        """Preprocess to a 28x28 PIL image (before tensor conversion)."""
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+        image = image.convert('L')
+        img_array = np.array(image)
+        coords = np.argwhere(img_array > 30)
+        if len(coords) == 0:
+            return Image.new('L', (28, 28), 0)
+        y_min, x_min = coords.min(axis=0)
+        y_max, x_max = coords.max(axis=0)
+        cropped = img_array[y_min:y_max+1, x_min:x_max+1]
+        cropped_img = Image.fromarray(cropped)
+        target_size = 20
+        h, w = cropped.shape
+        scale = target_size / max(h, w)
+        new_w = max(1, int(w * scale))
+        new_h = max(1, int(h * scale))
+        resized = cropped_img.resize((new_w, new_h), Image.BILINEAR)
+        canvas = Image.new('L', (28, 28), 0)
+        paste_x = (28 - new_w) // 2
+        paste_y = (28 - new_h) // 2
+        canvas.paste(resized, (paste_x, paste_y))
+        return canvas
+
+    def predict_single(self, image, use_tta=True):
+        """Predict a single symbol with optional test-time augmentation."""
+        pil_img = self._preprocess_to_pil(image)
+
+        if use_tta:
+            # Average logits across TTA transforms
+            all_logits = []
+            for t in self.tta_transforms:
+                tensor = t(pil_img).unsqueeze(0).to(self.device)
+                with torch.no_grad():
+                    logits = self.model(tensor)
+                all_logits.append(logits)
+            avg_logits = torch.stack(all_logits).mean(dim=0)
+            probabilities = torch.softmax(avg_logits, dim=1)
             confidence, predicted = probabilities.max(1)
+        else:
+            tensor = self.transform(pil_img).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                output = self.model(tensor)
+                probabilities = torch.softmax(output, dim=1)
+                confidence, predicted = probabilities.max(1)
+
         return SYMBOL_CLASSES[predicted.item()], confidence.item()
 
     def predict_symbols(self, symbol_images):
         expression = ""
         confidences = []
         for img in symbol_images:
-            symbol, conf = self.predict_single(img)
+            symbol, conf = self.predict_single(img, use_tta=True)
             expression += symbol
             confidences.append((symbol, conf))
         return expression, confidences
