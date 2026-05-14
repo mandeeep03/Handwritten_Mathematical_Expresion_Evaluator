@@ -25,13 +25,23 @@ OPERATOR_CLASSES = {
 }
 
 # EMNIST letters split: labels 1-26 -> a-z
-# We remap to our indices 17-42
 EMNIST_LETTER_REMAP = {}
-for i in range(26):
-    letter = chr(ord('a') + i)
-    emnist_label = i + 1   # EMNIST letters: 1=a, 2=b, ... 26=z
-    our_idx = SYMBOL_TO_IDX[letter]
-    EMNIST_LETTER_REMAP[emnist_label] = our_idx
+
+# Remapping only 'a', 'b', 'c', and 'w', 'x', 'y', 'z' to our indices
+EMNIST_LETTER_REMAP[1] = SYMBOL_TO_IDX['a']
+EMNIST_LETTER_REMAP[2] = SYMBOL_TO_IDX['b']
+EMNIST_LETTER_REMAP[3] = SYMBOL_TO_IDX['c']
+EMNIST_LETTER_REMAP[23] = SYMBOL_TO_IDX['w']
+EMNIST_LETTER_REMAP[24] = SYMBOL_TO_IDX['x']
+EMNIST_LETTER_REMAP[25] = SYMBOL_TO_IDX['y']
+EMNIST_LETTER_REMAP[26] = SYMBOL_TO_IDX['z']
+
+# We remap to our indices 17-42
+# for i in range(26):
+#     letter = chr(ord('a') + i)
+#     emnist_label = i + 1   # EMNIST letters: 1=a, 2=b, ... 26=z
+#     our_idx = SYMBOL_TO_IDX[letter]
+#     EMNIST_LETTER_REMAP[emnist_label] = our_idx
 
 
 # ────────────────────────────────────────────────────────────────────
