@@ -3,11 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# Unified symbol classes: 10 digits + 7 operators/symbols + 26 lowercase letters = 43 classes
+# Unified symbol classes: 10 digits + 7 operators/symbols + 7 lowercase letters = 24 classes
 SYMBOL_CLASSES = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',   # 0-9
-    '+', '-', '*', '/', '(', ')', '=',                     # 10-16
-    'a', 'b', 'c', 'w', 'x', 'y', 'z',                         # 17-22
+    '+', '-', '*', '/', '(', ')', '=',                  # 10-16
+    'a', 'b', 'c', 'w', 'x', 'y', 'z',                  # 17-23
 ]
 NUM_CLASSES = len(SYMBOL_CLASSES)
 
