@@ -13,7 +13,7 @@ TRANSFORMATIONS = standard_transformations + (
 )
 
 # All single-letter variables we support
-VARIABLE_LETTERS = set('abcdefghijklmnopqrstuvwxyz')
+VARIABLE_LETTERS = set('abcwxyz')
 
 
 def parse_expression(expr_string):
